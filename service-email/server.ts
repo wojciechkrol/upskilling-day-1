@@ -25,24 +25,31 @@ const transporter = nodemailer.createTransport({
 
   channel.consume(AMQP_QUEUE, async (msg) => {
     if (msg !== null) {
-      const message = JSON.parse(msg.content.toString()) as Message;
+      try {
+        const message = JSON.parse(msg.content.toString()) as Message;
 
-      if (message.success === true) {
-        await transporter.sendMail({
-          from: "MyTube <notification@mytube.local>",
-          to: "John Doe <john@doe.com>",
-          subject: "Your video is ready!",
-          text: `You can watch it here: http://localhost/${message.id}`,
-          html: `<p>You can watch it here: <a href="http://localhost/${message.id}">http://localhost/${message.id}</a>`,
-        });
-      } else if (message.success === false) {
-        await transporter.sendMail({
-          from: "MyTube <notification@mytube.local>",
-          to: "John Doe <john@doe.com>",
-          subject: "Your video failed!",
-          text: `Something went wrong with your video. Please try again later.`,
-          html: `<p>Something went wrong with your video. Please try again later.</p>`,
-        });
+        if (message.success === true) {
+          await transporter.sendMail({
+            from: "MyTube <notification@mytube.local>",
+            to: "John Doe <john@doe.com>",
+            subject: "Your video is ready!",
+            text: `You can watch it here: http://localhost/${message.id}`,
+            html: `<p>You can watch it here: <a href="http://localhost/${message.id}">http://localhost/${message.id}</a>`,
+          });
+        } else if (message.success === false) {
+          await transporter.sendMail({
+            from: "MyTube <notification@mytube.local>",
+            to: "John Doe <john@doe.com>",
+            subject: "Your video failed!",
+            text: `Something went wrong with your video. Please try again later.`,
+            html: `<p>Something went wrong with your video. Please try again later.</p>`,
+          });
+        }
+
+        channel.ack(msg);
+      } catch (error) {
+        console.error(error);
+        channel.reject(msg, false);
       }
     }
   });

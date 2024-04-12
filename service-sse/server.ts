@@ -48,16 +48,22 @@ app.get("/sse/:topic", (c) => {
 
   channel.consume(AMQP_QUEUE, async (msg) => {
     if (msg !== null) {
-      const message = JSON.parse(msg.content.toString()) as Message;
-      const topic = message.id;
+      try {
+        const message = JSON.parse(msg.content.toString()) as Message;
+        const topic = message.id;
 
-      const streams = subscribers.get(topic);
-      if (streams) {
-        for (const stream of streams) {
-          stream.writeSSE({
-            data: JSON.stringify({ success: message.success }),
-          });
+        const streams = subscribers.get(topic);
+        if (streams) {
+          for (const stream of streams) {
+            stream.writeSSE({
+              data: JSON.stringify({ success: message.success }),
+            });
+          }
         }
+        channel.ack(msg);
+      } catch (error) {
+        console.error(error);
+        channel.reject(msg, false);
       }
     }
   });
