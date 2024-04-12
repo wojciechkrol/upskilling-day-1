@@ -1,0 +1,134 @@
+networks:
+    default:
+volumes:
+  upskilling_rabbitmq_data:
+  upskilling_minio_data:
+  upskilling_mongo_data:
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - upskilling_rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    networks:
+      - default
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    volumes:
+        - upskilling_minio_data:/data
+    entrypoint: sh
+    command: -c 'mkdir -p /data/mytube && /usr/bin/minio server --console-address :9001 /data'
+    ports:
+      - 9000:9000
+      - 9001:9001
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=1234567890
+    networks:
+      - default
+  mongo:
+    image: "mongo:5"
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_DATABASE=app
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin
+    volumes:
+      - ./mongo/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - upskilling_mongo_data:/data/db
+    ports:
+      - "27017-27019:27017-27019"
+    networks:
+      - default
+  mailhog:
+    image: mailhog/mailhog:v1.0.0
+    ports:
+      - 8025:8025
+    networks:
+      - default
+
+  
+  high_priority_video:
+    build: ./service-video
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+      - minio
+    environment:
+      - AMQP_URL=amqp://client:client@rabbitmq:5672/mytube
+      - AMQP_QUEUE=high_priority_video_queue
+      - MINIO_HOST=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=1234567890
+      - MINIO_BUCKET=mytube
+    networks:
+      - default
+  low_priority_video:
+    build: ./service-video
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+      - minio
+    environment:
+      - AMQP_URL=amqp://client:client@rabbitmq:5672/mytube
+      - AMQP_QUEUE=low_priority_video_queue
+      - MINIO_HOST=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=1234567890
+      - MINIO_BUCKET=mytube
+    networks:
+      - default
+  app:
+    build: ./app
+    restart: unless-stopped
+    ports:
+      - 80:3000
+    depends_on:
+      - rabbitmq
+      - mongo
+      - minio
+    environment:
+      - AMQP_URL=amqp://client:client@rabbitmq:5672/mytube
+      - MINIO_HOST=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=1234567890
+      - MINIO_BUCKET=mytube
+      - MONGO_URL=mongodb://user:password@mongo:27017/app
+    networks:
+      - default
+  sse-service:
+    build: ./service-sse
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    ports:
+      - 8081:8081
+    environment:
+      - AMQP_URL=amqp://client:client@rabbitmq:5672/mytube
+      - AMQP_QUEUE=sse_queue
+    networks:
+      - default
+  mail-service:
+    build: ./service-email
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    environment:
+      - AMQP_URL=amqp://client:client@rabbitmq:5672/mytube
+      - AMQP_QUEUE=email_queue
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+    networks:
+      - default

@@ -1,0 +1,182 @@
+{
+  "rabbit_version": "3.12.12",
+  "rabbitmq_version": "3.12.12",
+  "product_name": "RabbitMQ",
+  "product_version": "3.12.12",
+  "users": [
+    {
+      "name": "admin",
+      "password_hash": "vbG6A25hx7WaNPRMOUrQ9pYsLsY8J4ovOiUyOzShqSv5Yf/v",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": [
+        "administrator"
+      ],
+      "limits": {}
+    },
+    {
+      "name": "client",
+      "password_hash": "6Gbvv/3JgMmW1oOBl+D5tDOGeK6VK9GmJwPtDOdnZxqF8o3W",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": [
+        "administrator"
+      ],
+      "limits": {}
+    }
+  ],
+  "vhosts": [
+    {
+      "name": "mytube"
+    }
+  ],
+  "permissions": [
+    {
+      "user": "admin",
+      "vhost": "mytube",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    },
+    {
+      "user": "client",
+      "vhost": "mytube",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "topic_permissions": [],
+  "parameters": [],
+  "global_parameters": [
+    {
+      "name": "internal_cluster_id",
+      "value": "rabbitmq-cluster-id-LnGtN6r2OpK030aP000kag"
+    }
+  ],
+  "policies": [],
+  "exchanges": [
+    {
+      "name": "video_exchange",
+      "vhost": "mytube",
+      "type": "headers",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "notification_exchange",
+      "vhost": "mytube",
+      "type": "fanout",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "dead_letter_exchange",
+      "vhost": "mytube",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "low_priority_video_queue",
+      "vhost": "mytube",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "dead_letter_exchange",
+        "x-dead-letter-routing-key": "low_priority_video_queue"
+      }
+    },
+    {
+      "name": "high_priority_video_queue",
+      "vhost": "mytube",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {
+        "x-dead-letter-exchange": "dead_letter_exchange",
+        "x-dead-letter-routing-key": "high_priority_video_queue"
+      }
+    },
+    {
+      "name": "video_queue_dlq",
+      "vhost": "mytube",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "email_queue",
+      "vhost": "mytube",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "sse_queue",
+      "vhost": "mytube",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "video_exchange",
+      "vhost": "mytube",
+      "destination": "high_priority_video_queue",
+      "destination_type": "queue",
+      "routing_key": null,
+      "arguments": {
+        "priority": "high"
+      }
+    },
+    {
+      "source": "video_exchange",
+      "vhost": "mytube",
+      "destination": "low_priority_video_queue",
+      "destination_type": "queue",
+      "routing_key": null,
+      "arguments": {
+        "priority": "low"
+      }
+    },
+    {
+      "source": "notification_exchange",
+      "vhost": "mytube",
+      "destination": "email_queue",
+      "destination_type": "queue",
+      "routing_key": null,
+      "arguments": {}
+    },
+    {
+      "source": "notification_exchange",
+      "vhost": "mytube",
+      "destination": "sse_queue",
+      "destination_type": "queue",
+      "routing_key": null,
+      "arguments": {}
+    },
+    {
+      "source": "dead_letter_exchange",
+      "vhost": "mytube",
+      "destination": "video_queue_dlq",
+      "destination_type": "queue",
+      "routing_key": "low_priority_video_queue",
+      "arguments": {}
+    },
+    {
+      "source": "dead_letter_exchange",
+      "vhost": "mytube",
+      "destination": "video_queue_dlq",
+      "destination_type": "queue",
+      "routing_key": "high_priority_video_queue",
+      "arguments": {}
+    }
+  ]
+}
